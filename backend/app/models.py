@@ -1,5 +1,4 @@
 import enum
-from datetime import datetime
 from sqlalchemy import (
     Column, Integer, String, Text, DateTime, Date, Enum, ForeignKey
 )
@@ -82,4 +81,4 @@ class ActivityLog(Base):
     )
     action = Column(String(50))  # e.g. 'lead_created', 'status_changed', 'note_added', 'lead_deleted'
     details = Column(Text, nullable=True)  # human-readable description
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -49,19 +49,30 @@ def list_leads(
 
     # Get total count
     total = query.count()
-    total_pages = math.ceil(total / per_page) if total > 0 else 1
+    total_pages = math.ceil(total / per_page) if total > 0 else 0
 
     # Paginate
     leads = query.order_by(Lead.created_at.desc()).offset(
         (page - 1) * per_page
     ).limit(per_page).all()
 
-    # Add notes_count to each lead
+    # Batch-load notes_count for all leads in one query
+    if leads:
+        lead_ids = [lead.id for lead in leads]
+        notes_counts = (
+            db.query(Note.lead_id, func.count(Note.id))
+            .filter(Note.lead_id.in_(lead_ids))
+            .group_by(Note.lead_id)
+            .all()
+        )
+        notes_count_map = {nc[0]: nc[1] for nc in notes_counts}
+    else:
+        notes_count_map = {}
+
     lead_responses = []
     for lead in leads:
-        notes_count = db.query(func.count(Note.id)).filter(Note.lead_id == lead.id).scalar()
         lead_data = LeadResponse.model_validate(lead)
-        lead_data.notes_count = notes_count
+        lead_data.notes_count = notes_count_map.get(lead.id, 0)
         lead_responses.append(lead_data)
 
     return PaginatedLeads(
@@ -118,11 +129,17 @@ def get_dashboard_stats(
     _current_admin: Admin = Depends(get_current_admin),
 ):
     """Get dashboard statistics."""
-    total = db.query(func.count(Lead.id)).scalar()
-    new = db.query(func.count(Lead.id)).filter(Lead.status == LeadStatus.NEW).scalar()
-    contacted = db.query(func.count(Lead.id)).filter(Lead.status == LeadStatus.CONTACTED).scalar()
-    converted = db.query(func.count(Lead.id)).filter(Lead.status == LeadStatus.CONVERTED).scalar()
-    lost = db.query(func.count(Lead.id)).filter(Lead.status == LeadStatus.LOST).scalar()
+    status_counts = (
+        db.query(Lead.status, func.count(Lead.id))
+        .group_by(Lead.status)
+        .all()
+    )
+    count_map = {sc[0]: sc[1] for sc in status_counts}
+    total = sum(count_map.values()) if count_map else 0
+    new = count_map.get(LeadStatus.NEW, 0)
+    contacted = count_map.get(LeadStatus.CONTACTED, 0)
+    converted = count_map.get(LeadStatus.CONVERTED, 0)
+    lost = count_map.get(LeadStatus.LOST, 0)
 
     recent = db.query(Lead).order_by(Lead.created_at.desc()).limit(5).all()
 

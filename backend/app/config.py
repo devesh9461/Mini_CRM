@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "mini-crm-super-secret-key-change-in-production-2024"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://localhost:80,http://localhost"
+    CORS_ORIGINS: str = "https://mini-crm-kohl.vercel.app,http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://localhost:80,http://localhost"
 
     # Rate limiting
     RATE_LIMIT_GLOBAL: str = "60/minute"
