@@ -1,0 +1,65 @@
+.service-prompt-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.service-prompt-card {
+  background: var(--bg-card);
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+}
+
+.service-subtitle {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.service-title {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.service-message {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin: 1rem 0;
+}
+
+.service-pay-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--accent-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+.service-pay-btn:hover {
+  background: var(--accent-secondary);
+  transform: translateY(-2px);
+}
+
+.service-skip-btn {
+  background: transparent;
+  color: var(--accent-primary);
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.service-skip-btn:hover {
+  color: var(--accent-secondary);
+}

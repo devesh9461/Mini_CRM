@@ -1,0 +1,61 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-mini_crm}
+      POSTGRES_USER: ${POSTGRES_USER:-mini_crm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mini_crm_secret}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mini_crm} -d ${POSTGRES_DB:-mini_crm}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mini_crm_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://mini_crm:mini_crm_secret@db:5432/mini_crm}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-480}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:80,http://localhost}
+      RATE_LIMIT_GLOBAL: ${RATE_LIMIT_GLOBAL:-60/minute}
+      RATE_LIMIT_AUTH: ${RATE_LIMIT_AUTH:-10/minute}
+    networks:
+      - mini_crm_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+    restart: unless-stopped
+    ports:
+      - "${PORT:-80}:80"
+    depends_on:
+      - backend
+    networks:
+      - mini_crm_net
+
+volumes:
+  postgres_data:
+
+networks:
+  mini_crm_net:
+    driver: bridge
