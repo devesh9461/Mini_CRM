@@ -2,9 +2,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.config import settings
 from app.database import engine, Base, SessionLocal
@@ -12,19 +12,28 @@ from app.limiter import limiter
 from app.routers import auth, leads, notes, activities
 
 
+# Safe slowapi handler import
+try:
+    from slowapi import _rate_limit_exceeded_handler
+except ImportError:
+    def _rate_limit_exceeded_handler(request, exc):
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Rate limit exceeded. Please try again later."},
+        )
+
+
 def ensure_database_exists():
-    """Ensure the database is ready."""
     url = settings.DATABASE_URL
     if url.startswith("sqlite"):
         print("[Database] Using SQLite. File will be auto-created.")
     elif url.startswith("postgresql"):
-        print("[Database] Using PostgreSQL. Ensure the database exists on your host.")
+        print("[Database] Using PostgreSQL.")
     else:
-        print(f"[Database] Using {url.split('://')[0]}. Ensure the database exists.")
+        print(f"[Database] Using {url.split('://')[0]}.")
 
 
 def auto_seed():
-    """Create default admin if no admins exist yet."""
     from app.models import Admin
     from app.auth import hash_password
     db = SessionLocal()
@@ -37,7 +46,7 @@ def auto_seed():
             )
             db.add(admin)
             db.commit()
-            print("✅ Default admin created: username=admin, password=admin123")
+            print("[Seed] Default admin created: username=admin, password=admin123")
         else:
             print("[Seed] Admin already exists, skipping.")
     except Exception as e:
@@ -47,16 +56,30 @@ def auto_seed():
         db.close()
 
 
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        response = await call_next(request)
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "0"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        return response
+class SecurityHeadersMiddleware:
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_headers(message):
+            if message["type"] == "http.response.start":
+                headers = message.get("headers", [])
+                headers.extend([
+                    (b"x-content-type-options", b"nosniff"),
+                    (b"x-frame-options", b"DENY"),
+                    (b"x-xss-protection", b"0"),
+                    (b"referrer-policy", b"strict-origin-when-cross-origin"),
+                    (b"permissions-policy", b"camera=(), microphone=(), geolocation=()"),
+                    (b"strict-transport-security", b"max-age=31536000; includeSubDomains"),
+                ])
+                message["headers"] = headers
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
 
 
 @asynccontextmanager
@@ -79,7 +102,7 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Security headers
+# Security headers (ASGI middleware — no BaseHTTPMiddleware issues)
 app.add_middleware(SecurityHeadersMiddleware)
 
 # CORS

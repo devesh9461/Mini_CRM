@@ -17,7 +17,7 @@ class LeadStatusEnum(str, Enum):
 
 class AdminCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=100)
-    email: str = Field(..., max_length=255)
+    email: EmailStr
     password: str = Field(..., min_length=6)
 
 
@@ -46,7 +46,7 @@ class TokenResponse(BaseModel):
 
 class LeadCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=150)
-    email: str = Field(..., max_length=255)
+    email: EmailStr
     phone: Optional[str] = Field(None, max_length=20)
     source: str = Field("Website", max_length=100)
     status: LeadStatusEnum = LeadStatusEnum.NEW
@@ -54,7 +54,7 @@ class LeadCreate(BaseModel):
 
 class LeadUpdate(BaseModel):
     name: Optional[str] = Field(None, max_length=150)
-    email: Optional[str] = Field(None, max_length=255)
+    email: Optional[EmailStr] = None
     phone: Optional[str] = Field(None, max_length=20)
     source: Optional[str] = Field(None, max_length=100)
     status: Optional[LeadStatusEnum] = None

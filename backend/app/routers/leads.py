@@ -194,6 +194,7 @@ def bulk_import(
     """Bulk import leads. Wraps all inserts in a single transaction."""
     imported = 0
     errors = []
+    created_leads = []
 
     for i, lead_data in enumerate(payload.leads):
         try:
@@ -210,7 +211,17 @@ def bulk_import(
             status=validated.status,
         )
         db.add(lead)
+        db.flush()
+        created_leads.append(lead)
         imported += 1
+
+    if created_leads:
+        for lead in created_leads:
+            db.add(ActivityLog(
+                lead_id=lead.id,
+                action="lead_created",
+                details=f"Lead '{lead.name}' created (bulk import)",
+            ))
 
     if imported > 0 or errors:
         db.commit()
