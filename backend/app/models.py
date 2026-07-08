@@ -48,7 +48,7 @@ class Lead(Base):
         onupdate=func.now(),
     )
 
-    # Relationship
+    # Relationship to Notes
     notes = relationship(
         "Note", back_populates="lead", cascade="all, delete-orphan",
         order_by="Note.created_at.desc()"
@@ -67,7 +67,7 @@ class Note(Base):
     follow_up_date = Column(Date, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    # Relationship
+    # Relationship to Lead
     lead = relationship("Lead", back_populates="notes")
 
 
@@ -77,7 +77,7 @@ class ActivityLog(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     lead_id = Column(
-        Integer, ForeignKey("leads.id", ondelete="CASCADE"), nullable=True, index=True
+        Integer, ForeignKey("leads.id", ondelete="SET NULL"), nullable=True, index=True
     )
     action = Column(String(50))  # e.g. 'lead_created', 'status_changed', 'note_added', 'lead_deleted'
     details = Column(Text, nullable=True)  # human-readable description

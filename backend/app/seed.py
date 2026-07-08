@@ -1,103 +1,149 @@
-"""
-Seed script — populates the database with demo data.
-
-Usage:
-    cd backend
-    python -m app.seed
-"""
-from datetime import datetime, timedelta
-import random
-from app.database import SessionLocal, engine, Base
-from app.models import Admin, Lead, LeadStatus, Note
+import datetime
+from sqlalchemy.orm import Session
+from app.models import Lead, Note, ActivityLog, LeadStatus, Admin
 from app.auth import hash_password
 
 
-def seed():
-    """Populate database with sample admin, leads, and notes."""
-    Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
-
-    try:
-        # ── Check if already seeded ───────────────────────────────────────
-        if db.query(Admin).first():
-            print("⚠️  Database already has data. Skipping seed.")
-            return
-
-        # ── Create default admin ──────────────────────────────────────────
-        admin = Admin(
+def seed_database(db: Session):
+    """Seed the database with default admin and dummy lead data if empty."""
+    # 1. Seed Admin
+    if not db.query(Admin).first():
+        default_admin = Admin(
             username="admin",
             email="admin@minicrm.com",
             password=hash_password("admin123"),
         )
-        db.add(admin)
-        print("✅ Created admin: username=admin, password=admin123")
+        db.add(default_admin)
+        db.commit()
+        print("[Seed] Default admin created: username=admin, password=admin123")
 
-        # ── Create sample leads ───────────────────────────────────────────
-        sample_leads = [
-            {"name": "Rahul Sharma", "email": "rahul.sharma@gmail.com", "phone": "+91-9876543210", "source": "Website", "status": LeadStatus.NEW},
-            {"name": "Priya Patel", "email": "priya.patel@outlook.com", "phone": "+91-8765432109", "source": "LinkedIn", "status": LeadStatus.CONTACTED},
-            {"name": "Amit Kumar", "email": "amit.kumar@yahoo.com", "phone": "+91-7654321098", "source": "Referral", "status": LeadStatus.CONVERTED},
-            {"name": "Sneha Reddy", "email": "sneha.r@gmail.com", "phone": "+91-6543210987", "source": "Website", "status": LeadStatus.NEW},
-            {"name": "Vikram Singh", "email": "vikram.singh@company.com", "phone": "+91-5432109876", "source": "Google Ads", "status": LeadStatus.CONTACTED},
-            {"name": "Ananya Iyer", "email": "ananya.i@techcorp.com", "phone": "+91-4321098765", "source": "Website", "status": LeadStatus.NEW},
-            {"name": "Rohan Gupta", "email": "rohan.g@startup.io", "phone": "+91-3210987654", "source": "Referral", "status": LeadStatus.CONVERTED},
-            {"name": "Kavitha Nair", "email": "kavitha.nair@gmail.com", "phone": "+91-2109876543", "source": "LinkedIn", "status": LeadStatus.LOST},
-            {"name": "Arjun Mehta", "email": "arjun.m@enterprise.com", "phone": "+91-1098765432", "source": "Website", "status": LeadStatus.CONTACTED},
-            {"name": "Divya Joshi", "email": "divya.joshi@mail.com", "phone": "+91-9988776655", "source": "Google Ads", "status": LeadStatus.NEW},
-            {"name": "Suresh Babu", "email": "suresh.b@consulting.in", "phone": "+91-8877665544", "source": "Referral", "status": LeadStatus.CONTACTED},
-            {"name": "Meera Krishnan", "email": "meera.k@design.co", "phone": "+91-7766554433", "source": "Website", "status": LeadStatus.NEW},
+    # 2. Seed Leads and Notes
+    if not db.query(Lead).first():
+        print("[Seed] Seeding dummy leads and notes...")
+        dummy_leads = [
+            {
+                "name": "Devesh Jangid",
+                "email": "devesh@example.com",
+                "phone": "+91 98765 43210",
+                "source": "LinkedIn",
+                "status": LeadStatus.CONTACTED,
+                "notes": [
+                    {
+                        "content": "Had an initial call. Devesh is interested in setting up a demo for the whole sales team next Friday.",
+                        "follow_up_date": datetime.date.today() + datetime.timedelta(days=2)
+                    },
+                    {
+                        "content": "Connected on LinkedIn and shared our marketing brochures.",
+                        "follow_up_date": None
+                    }
+                ]
+            },
+            {
+                "name": "Sarah Miller",
+                "email": "sarah.m@enterprise.com",
+                "phone": "+1 555-0199",
+                "source": "Website",
+                "status": LeadStatus.NEW,
+                "notes": [
+                    {
+                        "content": "Form submission from the website. Looking for pricing models for 50+ user licenses.",
+                        "follow_up_date": datetime.date.today() + datetime.timedelta(days=1)
+                    }
+                ]
+            },
+            {
+                "name": "Rajesh Patel",
+                "email": "rajesh@innovations.in",
+                "phone": "+91 99999 88888",
+                "source": "Referral",
+                "status": LeadStatus.CONVERTED,
+                "notes": [
+                    {
+                        "content": "Contract signed and payment received! Onboarding scheduled for next Tuesday.",
+                        "follow_up_date": None
+                    },
+                    {
+                        "content": "Drafted formal SLA proposal and sent it over for legal review.",
+                        "follow_up_date": None
+                    },
+                    {
+                        "content": "Conducted a detailed product demo. Highly positive response, client agreed to purchase.",
+                        "follow_up_date": None
+                    }
+                ]
+            },
+            {
+                "name": "Emily Watson",
+                "email": "emily@watsonmedia.co",
+                "phone": "+44 20 7946 0958",
+                "source": "Google Ads",
+                "status": LeadStatus.LOST,
+                "notes": [
+                    {
+                        "content": "Budget constraint. Our pricing was too expensive for their startup stage. Marking as lost for now.",
+                        "follow_up_date": None
+                    },
+                    {
+                        "content": "Follow-up email sent regarding pricing plans.",
+                        "follow_up_date": None
+                    }
+                ]
+            },
+            {
+                "name": "Vikram Singh",
+                "email": "vikram@singhtech.com",
+                "phone": "+91 91111 22222",
+                "source": "Email Campaign",
+                "status": LeadStatus.NEW,
+                "notes": []
+            },
+            {
+                "name": "Amanda Ross",
+                "email": "amanda.ross@gmail.com",
+                "phone": "+1 415-555-2671",
+                "source": "Other",
+                "status": LeadStatus.CONTACTED,
+                "notes": [
+                    {
+                        "content": "Sent introductory email. Client replied and wants to schedule a short 15-minute call.",
+                        "follow_up_date": datetime.date.today() + datetime.timedelta(days=3)
+                    }
+                ]
+            }
         ]
 
-        leads = []
-        for i, data in enumerate(sample_leads):
-            lead = Lead(**data)
-            # Spread created_at over the last 30 days
-            lead.created_at = datetime.now() - timedelta(days=30 - i * 2, hours=random.randint(0, 23))
-            db.add(lead)
-            leads.append(lead)
-
-        db.flush()  # Get IDs assigned
-        print(f"✅ Created {len(leads)} sample leads")
-
-        # ── Create sample notes ───────────────────────────────────────────
-        sample_notes = [
-            {"content": "Initial contact made via email. Client is interested in our web development services.", "days_ago": 5},
-            {"content": "Follow-up call scheduled. Client wants a detailed proposal for their e-commerce platform.", "days_ago": 3, "follow_up_days": 2},
-            {"content": "Sent pricing proposal. Awaiting client response.", "days_ago": 2},
-            {"content": "Client confirmed the project. Moving to onboarding.", "days_ago": 1},
-            {"content": "Discussed project requirements in detail. Client needs a CRM integration.", "days_ago": 4, "follow_up_days": 3},
-            {"content": "Shared portfolio and case studies. Client was impressed with the fintech project.", "days_ago": 6},
-            {"content": "Client requested a demo of our SaaS product. Scheduling for next week.", "days_ago": 2, "follow_up_days": 5},
-            {"content": "No response after 3 follow-ups. Marking as cold lead.", "days_ago": 1},
-        ]
-
-        for i, lead in enumerate(leads[:8]):
-            note_data = sample_notes[i]
-            note = Note(
-                lead_id=lead.id,
-                content=note_data["content"],
-                created_at=datetime.now() - timedelta(days=note_data["days_ago"]),
-                follow_up_date=(
-                    (datetime.now() + timedelta(days=note_data["follow_up_days"])).date()
-                    if "follow_up_days" in note_data
-                    else None
-                ),
+        for ld in dummy_leads:
+            lead = Lead(
+                name=ld["name"],
+                email=ld["email"],
+                phone=ld["phone"],
+                source=ld["source"],
+                status=ld["status"]
             )
-            db.add(note)
+            db.add(lead)
+            db.flush()  # to get lead.id
 
-        print(f"✅ Created {len(sample_notes)} sample notes")
+            # Create Activity Log for Lead Creation
+            db.add(ActivityLog(
+                lead_id=lead.id,
+                action="lead_created",
+                details=f"Lead '{lead.name}' created via {lead.source}"
+            ))
+
+            for nd in ld["notes"]:
+                note = Note(
+                    lead_id=lead.id,
+                    content=nd["content"],
+                    follow_up_date=nd["follow_up_date"]
+                )
+                db.add(note)
+                
+                # Create Activity Log for note creation
+                db.add(ActivityLog(
+                    lead_id=lead.id,
+                    action="note_added",
+                    details=f"Added note: '{note.content[:30]}...'"
+                ))
 
         db.commit()
-        print("\n🎉 Database seeded successfully!")
-        print("   Login with: username=admin, password=admin123")
-
-    except Exception as e:
-        db.rollback()
-        print(f"❌ Seed failed: {e}")
-        raise
-    finally:
-        db.close()
-
-
-if __name__ == "__main__":
-    seed()
+        print("[Seed] Seed data successfully committed.")
