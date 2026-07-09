@@ -53,8 +53,31 @@ async def lifespan(app: FastAPI):
                 print(f"[Database] Retrying in {retry_delay} seconds...")
                 time.sleep(retry_delay)
             else:
-                print("[Database] Max database connection retries reached. Server startup may fail.")
-                raise e
+                if os.getenv("RENDER") != "true":
+                    print("\n[Database] ⚠️ WARNING: Could not connect to remote database.")
+                    print("[Database] Falling back to local SQLite database for development.")
+                    
+                    from sqlalchemy import create_engine
+                    from pathlib import Path
+                    
+                    # Resolve backend root path
+                    backend_root = Path(__file__).resolve().parent.parent
+                    sqlite_url = f"sqlite:///{backend_root / 'db' / 'mini_crm.db'}"
+                    
+                    # Ensure directory exists
+                    sqlite_dir = backend_root / 'db'
+                    sqlite_dir.mkdir(parents=True, exist_ok=True)
+                    
+                    fallback_engine = create_engine(sqlite_url, connect_args={"check_same_thread": False})
+                    Base.metadata.create_all(bind=fallback_engine)
+                    
+                    SessionLocal.configure(bind=fallback_engine)
+                    db_connected = True
+                    print("[Database] Local SQLite database successfully initialized.")
+                    break
+                else:
+                    print("[Database] Max database connection retries reached. Server startup failed.")
+                    raise e
     
     if db_connected:
         # Seed database
