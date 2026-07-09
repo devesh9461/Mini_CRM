@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import API from '../api/axios';
 import StatsCards from '../components/StatsCards';
 import AddLeadModal from '../components/AddLeadModal';
@@ -16,13 +16,14 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (location.state?.openAddLead) {
       setIsModalOpen(true);
-      window.history.replaceState({}, document.title);
+      navigate('.', { replace: true, state: {} });
     }
-  }, [location.state]);
+  }, [location.state, navigate]);
 
   const fetchStats = useCallback(async () => {
     try {

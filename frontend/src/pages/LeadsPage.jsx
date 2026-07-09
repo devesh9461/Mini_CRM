@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import API from '../api/axios';
 import LeadTable from '../components/LeadTable';
@@ -14,6 +14,7 @@ const STATUSES = ['New', 'Contacted', 'Converted', 'Lost'];
 
 export default function LeadsPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -36,17 +37,17 @@ export default function LeadsPage() {
   useEffect(() => {
     if (location.state?.openAddLead) {
       setIsModalOpen(true);
-      window.history.replaceState({}, '');
+      navigate('.', { replace: true, state: {} });
     }
     if (location.state?.openImport) {
       setShowImport(true);
-      window.history.replaceState({}, '');
+      navigate('.', { replace: true, state: {} });
     }
     if (location.state?.exportCSV) {
       pendingExportRef.current = true;
-      window.history.replaceState({}, '');
+      navigate('.', { replace: true, state: {} });
     }
-  }, [location.state?.openAddLead, location.state?.openImport, location.state?.exportCSV]);
+  }, [location.state, navigate]);
 
   // Trigger CSV export once leads are loaded after sidebar navigation
   useEffect(() => {
@@ -136,7 +137,10 @@ export default function LeadsPage() {
           const proceed = window.confirm(
             `A lead with email "${leadData.email}" already exists:\n${res.data.matches.map(m => `- ${m.name}`).join('\n')}\n\nAdd anyway?`
           );
-          if (!proceed) return;
+          if (!proceed) {
+            // Throw a custom error structured like an API response to keep the modal open and show error
+            throw { response: { data: { detail: 'Duplicate email check cancelled. Please change the email.' } } };
+          }
         }
       }
       await API.post('/leads', leadData);
