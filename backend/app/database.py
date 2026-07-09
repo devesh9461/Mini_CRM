@@ -4,9 +4,12 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from app.config import settings
 
 # Create engine — pool_pre_ping ensures stale connections are recycled
-is_sqlite = settings.DATABASE_URL.startswith("sqlite")
-connect_args = {"check_same_thread": False} if is_sqlite else {}
 db_url = settings.DATABASE_URL
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+is_sqlite = db_url.startswith("sqlite")
+connect_args = {"check_same_thread": False} if is_sqlite else {}
 
 engine_args = {
     "pool_pre_ping": True,

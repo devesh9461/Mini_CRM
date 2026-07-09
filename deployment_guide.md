@@ -51,7 +51,9 @@ Aiven offers a lifetime-free tier for MySQL databases.
 ### Option B: Free PostgreSQL Database on Neon or Render
 If you want to use PostgreSQL instead:
 * **Neon.tech:** Provides a powerful free tier for PostgreSQL.
-* **Render.com:** Offers a built-in PostgreSQL database, but note that Render's free tier databases expire after 90 days.
+* **Render.com:** Offers a built-in PostgreSQL database (note that Render's free tier databases expire after 90 days).
+* **Automatic Compatibility:** The backend has been reengineered to support PostgreSQL out-of-the-box using the `psycopg2-binary` driver. If Render or Neon provides a connection string starting with `postgres://`, the backend will **automatically convert it** to `postgresql://` so that SQLAlchemy loads it with no issues.
+* **Database Cold Starts:** The backend includes connection retry logic that attempts to connect 5 times with a delay. This prevents the server from crashing if the database is waking up or deploying simultaneously.
 
 ---
 

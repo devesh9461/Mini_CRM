@@ -9,6 +9,9 @@ from app.routers import auth, leads, notes, activities
 from app.seed import seed_database
 
 
+import time
+from sqlalchemy.exc import OperationalError
+
 def ensure_database_exists():
     """Ensure the target database directory exists if using SQLite."""
     url = settings.DATABASE_URL
@@ -22,7 +25,7 @@ def ensure_database_exists():
         print("[Database] Using SQLite database.")
     elif url.startswith("mysql"):
         print("[Database] Using MySQL database.")
-    elif url.startswith("postgresql"):
+    elif url.startswith("postgresql") or url.startswith("postgres"):
         print("[Database] Using PostgreSQL database.")
     else:
         print(f"[Database] Using database URL prefix: {url.split('://')[0]}")
@@ -30,16 +33,38 @@ def ensure_database_exists():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Setup database
+    # Setup database with connection retry
     ensure_database_exists()
-    Base.metadata.create_all(bind=engine)
     
-    # Seed database
-    db = SessionLocal()
-    try:
-        seed_database(db)
-    finally:
-        db.close()
+    max_retries = 5
+    retry_delay = 3
+    db_connected = False
+    
+    for attempt in range(1, max_retries + 1):
+        try:
+            print(f"[Database] Connection attempt {attempt}/{max_retries}...")
+            Base.metadata.create_all(bind=engine)
+            db_connected = True
+            print("[Database] Successfully connected and initialized tables.")
+            break
+        except Exception as e:
+            print(f"[Database] Connection failed on attempt {attempt}: {e}")
+            if attempt < max_retries:
+                print(f"[Database] Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+            else:
+                print("[Database] Max database connection retries reached. Server startup may fail.")
+                raise e
+    
+    if db_connected:
+        # Seed database
+        db = SessionLocal()
+        try:
+            seed_database(db)
+        except Exception as e:
+            print(f"[Seed] Failed to seed database: {e}")
+        finally:
+            db.close()
         
     yield
     print("[Server] Shutting down Mini CRM API server.")
@@ -54,10 +79,12 @@ app = FastAPI(
 
 # CORS configuration
 origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
+allow_all = "*" in origins or not origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["*"] if allow_all else origins,
+    allow_credentials=False if allow_all else True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
